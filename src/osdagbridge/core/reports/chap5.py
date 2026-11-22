@@ -145,7 +145,7 @@ from osdagbridge.core.reports.report_utils import _tex, _render_value, get_girde
 
 if TYPE_CHECKING:
     pass
-def ch5_design_checks(checks_data, bridge) -> str:
+def ch5_design_checks(checks_data, bridge, fig_dir=None) -> str:
     """Chapter 5 — Design Checks.
 
     Parameters
@@ -975,8 +975,12 @@ Fatigue Shear Resistance, $Q_r$ & IRC 22 Table 8 ($\phi d$, $N_{sc}$) & """
         ratio, sf, lim = best
         return ("---", f"{sf:.1f}", f"{lim:.0f}", _ur_522(ratio))
 
+    _ur_records = []   # (row label, UR cell) -> consumed by charts.render_ur_charts
+
     def _row522(label, cells):
         c = [x if x else "---" for x in cells]
+        if len(c) >= 4:
+            _ur_records.append((label, c[3]))
         return label + r" & " + r" & ".join(c) + r" \\[6pt]" + "\n\\hline"
 
     # Deck rows: Demand/Capacity from deck_report_values (KEY_DD_*, the same dict
@@ -1064,6 +1068,23 @@ Fatigue Shear Resistance, $Q_r$ & IRC 22 Table 8 ($\phi d$, $N_{sc}$) & """
         _ed_shear_row,
     ]
     t522_content = "\n".join(_t522)
+
+    # Section 5.5 charts (Utilization Ratio bar charts)
+    ur_figs_tex = ""
+    if fig_dir:
+        try:
+            from osdagbridge.core.reports.charts import render_ur_charts, figure_tex
+            _p = render_ur_charts(_ur_records, fig_dir)
+            if "ur_overall" in _p:
+                ur_figs_tex += figure_tex("images/ur_overall.png",
+                    r"Governing utilization ratio of each primary element (UR $=$ Demand / Capacity). "
+                    r"The red dashed line marks UR $=$ 1.0; bars above it fail.")
+            if "ur_checks" in _p:
+                ur_figs_tex += figure_tex("images/ur_checks.png",
+                    r"Utilization ratio of every individual design check.", width=r"0.95\textwidth")
+        except Exception as _exc:   # charts must never break the report
+            import logging
+            logging.getLogger(__name__).warning("UR charts skipped: %s", _exc)
 
     return r"""
 \chapter{Design Checks}
@@ -1501,5 +1522,9 @@ End diaphragms at the supports transfer transverse loads to the bearings, restra
 \end{longtable}
 \noindent\textit{Note: UR = Demand / Capacity. All values $\leq 1.0$ indicate passing checks. The governing check for each component is highlighted in the individual design check sections above.}
 
+\vspace{1em}
+\Needspace{14\baselineskip}
+\subsection{Utilization Ratio Summary Charts}
+""" + ur_figs_tex + r"""
 """
 

@@ -1,4 +1,18 @@
-def ch7_quantities(input_dict):
+def ch7_quantities(input_dict, fig_dir=None):
+    charts_tex = ""
+    if fig_dir:
+        try:
+            from osdagbridge.core.reports.charts import render_material_charts, figure_tex
+            _p = render_material_charts(input_dict, fig_dir)
+            if "mat_steel" in _p:
+                charts_tex += figure_tex("images/mat_steel.png",
+                    "Structural steel tonnage by member group (MT).")
+            if "mat_concrete_rebar" in _p:
+                charts_tex += figure_tex("images/mat_concrete_rebar.png",
+                    "Concrete volume (m$^3$) versus reinforcement steel weight (MT).")
+        except Exception as exc:
+            import logging
+            logging.getLogger(__name__).warning("Material charts skipped: %s", exc)
     return r"""
 \chapter{Material Take-off \& Quantity Summary}
 \label{ch:material-takeoff}
@@ -28,6 +42,8 @@ def ch7_quantities(input_dict):
 6 & Crash Barrier & """ + str(input_dict.get("crash_barrier_vol_formula", "N.A.")) + r""" & """ + str(input_dict.get("crash_barrier_qty", "N.A.")) + r""" & """ + str(input_dict.get("crash_barrier_vol_total", "N.A.")) + r""" & """ + str(input_dict.get("crash_barrier_wt_single", "N.A.")) + r""" & """ + str(input_dict.get("crash_barrier_wt_total", "N.A.")) + r""" \\
 \hline
 \end{longtable}
-"""
+\endgroup
 
-
+\vspace{1em}
+\section{Material Quantity Charts}
+""" + charts_tex
